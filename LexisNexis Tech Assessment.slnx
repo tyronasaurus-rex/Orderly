@@ -1,4 +1,8 @@
 <Solution>
+  <Project Path="client/client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
   <Project Path="Orderly.Application/Orderly.Application.csproj" />
   <Project Path="Orderly.Domain/Orderly.Domain.csproj" />
   <Project Path="Orderly.Infrastructure/Orderly.Infrastructure.csproj" />

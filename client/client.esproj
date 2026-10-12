@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863">
+  <PropertyGroup>
+    <StartupCommand>npm start</StartupCommand>
+    <JavaScriptTestFramework>Jasmine</JavaScriptTestFramework>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <ShouldRunNpmAudit>false</ShouldRunNpmAudit>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist\client\browser\</BuildOutputFolder>
+    <DefaultItemExcludes>$(DefaultItemExcludes);node_modules\**;.angular\**;dist\**;coverage\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

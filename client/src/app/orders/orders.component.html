@@ -1,0 +1,317 @@
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="masthead-row">
+      <div>
+        <p class="eyebrow">Purchase orders</p>
+        <h1>Orderly</h1>
+      </div>
+      <button type="button" class="create-order" (click)="openCreate()">Create order</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  @if (notice()) {
+    <p class="banner success" role="status">{{ notice() }}</p>
+  }
+
+  <section class="stats" aria-label="Order summary">
+    <article class="stat-card">
+      <p class="stat-label">Orders</p>
+      <p class="stat-value">{{ loading() ? '—' : stats().count }}</p>
+      <p class="stat-hint">
+        @if (loading()) {
+          Loading…
+        } @else if (stats().cancelled === 0) {
+          None cancelled
+        } @else {
+          {{ stats().cancelled }} cancelled
+        }
+      </p>
+    </article>
+    <article class="stat-card" data-tone="open">
+      <p class="stat-label">Open</p>
+      <p class="stat-value">{{ loading() ? '—' : stats().open }}</p>
+      <p class="stat-hint">Submitted or confirmed</p>
+    </article>
+    <article class="stat-card" data-tone="fulfilled">
+      <p class="stat-label">Fulfilled</p>
+      <p class="stat-value">{{ loading() ? '—' : stats().fulfilled }}</p>
+      <p class="stat-hint">Completed orders</p>
+    </article>
+    <article class="stat-card" data-tone="value">
+      <p class="stat-label">Value</p>
+      <p class="stat-value">{{ loading() ? '—' : (stats().value | number: '1.2-2') }}</p>
+      <p class="stat-hint">Excludes cancelled</p>
+    </article>
+  </section>
+
+  <div class="layout">
+    <section class="panel list" aria-labelledby="order-list-heading">
+      <div class="panel-heading">
+        <h2 id="order-list-heading">Orders</h2>
+        <p>Newest first. The filter only narrows this list.</p>
+      </div>
+
+      <div class="field">
+        <label for="order-filter">Filter</label>
+        <input
+          id="order-filter"
+          type="search"
+          [value]="filterQuery()"
+          (input)="onFilterInput($event)"
+          placeholder="Reference, customer, or status"
+          autocomplete="off"
+        />
+      </div>
+
+      @if (loading()) {
+        <p class="quiet">Loading orders…</p>
+      } @else if (listError()) {
+        <p class="banner error" role="alert">{{ listError() }}</p>
+        <button type="button" class="secondary" (click)="loadOrders()">Try again</button>
+      } @else if (visibleOrders().length === 0) {
+        <p class="quiet">
+          @if (orders().length === 0) {
+            No orders yet.
+          } @else {
+            No orders match that filter.
+          }
+        </p>
+      } @else {
+        <p class="count">
+          {{ visibleOrders().length }}
+          {{ visibleOrders().length === 1 ? 'order' : 'orders' }}
+        </p>
+        <ul class="order-list">
+          @for (order of visibleOrders(); track order.id) {
+            <li>
+              <button
+                type="button"
+                class="order-row"
+                [class.is-selected]="selected()?.id === order.id"
+                [attr.aria-current]="selected()?.id === order.id ? 'true' : null"
+                (click)="select(order)"
+              >
+                <span class="order-row-main">
+                  <span class="reference">{{ order.externalReference }}</span>
+                  <span class="customer">{{ order.customerName }}</span>
+                </span>
+                <span class="order-row-meta">
+                  <span class="status" [attr.data-status]="order.status">{{ order.status }}</span>
+                  <span class="row-total">{{ order.total | number: '1.2-2' }}</span>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="panel detail" aria-labelledby="order-detail-heading">
+      <div class="panel-heading">
+        <h2 id="order-detail-heading">Order detail</h2>
+        <p>Line totals, the order total, and status come from the server.</p>
+      </div>
+
+      @if (selected(); as order) {
+        <dl class="facts">
+          <div>
+            <dt>Reference</dt>
+            <dd>{{ order.externalReference }}</dd>
+          </div>
+          <div>
+            <dt>Customer</dt>
+            <dd>{{ order.customerName }}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd><span class="status" [attr.data-status]="order.status">{{ order.status }}</span></dd>
+          </div>
+          <div>
+            <dt>Created</dt>
+            <dd><time [attr.datetime]="order.createdAtUtc">{{ order.createdAtUtc | date: 'medium' }}</time></dd>
+          </div>
+        </dl>
+
+        <div class="table-wrap">
+          <table>
+            <caption class="visually-hidden">Lines for {{ order.externalReference }}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Description</th>
+                <th scope="col" class="num">Qty</th>
+                <th scope="col" class="num">Unit price</th>
+                <th scope="col" class="num">Line total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of order.lines; track $index) {
+                <tr>
+                  <td>{{ line.description }}</td>
+                  <td class="num">{{ line.quantity }}</td>
+                  <td class="num">{{ line.unitPrice | number: '1.2-4' }}</td>
+                  <td class="num">{{ line.lineTotal | number: '1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <p class="order-total">Order total <strong>{{ order.total | number: '1.2-2' }}</strong></p>
+
+        <div class="status-actions">
+          <h3>Change status</h3>
+          @if (statusError()) {
+            <p class="banner error" role="alert">{{ statusError() }}</p>
+          }
+          @if (allowedChanges().length === 0) {
+            <p class="quiet">No further status changes are allowed.</p>
+          } @else {
+            <div class="action-row">
+              @for (status of allowedChanges(); track status) {
+                <button
+                  type="button"
+                  [class.primary]="status !== 'Cancelled'"
+                  [class.danger]="status === 'Cancelled'"
+                  [disabled]="statusUpdating()"
+                  (click)="changeStatus(status)"
+                >
+                  {{ statusActionLabel(status) }}
+                </button>
+              }
+            </div>
+            @if (statusUpdating()) {
+              <p class="quiet">Updating status…</p>
+            }
+          }
+        </div>
+      } @else {
+        <p class="quiet">Select an order to check its lines, totals, and status.</p>
+      }
+    </section>
+  </div>
+</main>
+
+@if (creating()) {
+  <div class="dialog-backdrop" (click)="closeCreate()">
+    <form
+      class="panel dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-order-heading"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="closeCreate()"
+      autocomplete="off"
+      novalidate
+    >
+      <div class="panel-heading">
+        <h2 id="new-order-heading">New order</h2>
+        <p>The server calculates each line total and the order total.</p>
+      </div>
+
+      @if (formError()) {
+        <p class="banner error" role="alert">{{ formError() }}</p>
+      }
+
+      <div class="field">
+        <label for="external-reference">External reference</label>
+        <input
+          id="external-reference"
+          type="text"
+          formControlName="externalReference"
+          [attr.maxlength]="limits.externalReference"
+          autocomplete="off"
+          spellcheck="false"
+          autofocus
+          [attr.aria-invalid]="form.controls.externalReference.touched && form.controls.externalReference.invalid"
+        />
+        @if (form.controls.externalReference.touched && form.controls.externalReference.invalid) {
+          <p class="field-error">Enter a reference up to {{ limits.externalReference }} characters.</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="customer-name">Customer</label>
+        <input
+          id="customer-name"
+          type="text"
+          formControlName="customerName"
+          [attr.maxlength]="limits.customerName"
+          autocomplete="organization"
+          [attr.aria-invalid]="form.controls.customerName.touched && form.controls.customerName.invalid"
+        />
+        @if (form.controls.customerName.touched && form.controls.customerName.invalid) {
+          <p class="field-error">Enter a customer name up to {{ limits.customerName }} characters.</p>
+        }
+      </div>
+
+      <fieldset class="lines" formArrayName="lines">
+        <legend>Lines</legend>
+        @for (line of lineGroups; track line; let i = $index) {
+          <div class="line" [formGroupName]="i">
+            <p class="line-label">Line {{ i + 1 }}</p>
+            <div class="line-grid">
+              <div class="field field-grow">
+                <label [attr.for]="'line-description-' + i">Description</label>
+                <input
+                  [id]="'line-description-' + i"
+                  type="text"
+                  formControlName="description"
+                  [attr.maxlength]="limits.description"
+                  [attr.aria-invalid]="line.controls.description.touched && line.controls.description.invalid"
+                />
+                @if (line.controls.description.touched && line.controls.description.invalid) {
+                  <p class="field-error">Enter a description up to {{ limits.description }} characters.</p>
+                }
+              </div>
+              <div class="field">
+                <label [attr.for]="'line-quantity-' + i">Quantity</label>
+                <input
+                  [id]="'line-quantity-' + i"
+                  type="number"
+                  formControlName="quantity"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  [attr.aria-invalid]="line.controls.quantity.touched && line.controls.quantity.invalid"
+                />
+                @if (line.controls.quantity.touched && line.controls.quantity.invalid) {
+                  <p class="field-error">Use a whole number of at least 1.</p>
+                }
+              </div>
+              <div class="field">
+                <label [attr.for]="'line-price-' + i">Unit price</label>
+                <input
+                  [id]="'line-price-' + i"
+                  type="number"
+                  formControlName="unitPrice"
+                  min="0"
+                  step="0.01"
+                  inputmode="decimal"
+                  [attr.aria-invalid]="line.controls.unitPrice.touched && line.controls.unitPrice.invalid"
+                />
+                @if (line.controls.unitPrice.touched && line.controls.unitPrice.invalid) {
+                  <p class="field-error">Use zero or a positive price.</p>
+                }
+              </div>
+            </div>
+            @if (lineGroups.length > 1) {
+              <button type="button" class="text-button" (click)="removeLine(i)">Remove line</button>
+            }
+          </div>
+        }
+        <button type="button" class="secondary" (click)="addLine()">Add line</button>
+      </fieldset>
+
+      <div class="dialog-actions">
+        <button type="button" class="secondary" (click)="closeCreate()" [disabled]="submitting()">Cancel</button>
+        <button type="submit" class="primary" [disabled]="submitting()">
+          {{ submitting() ? 'Submitting…' : 'Submit order' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

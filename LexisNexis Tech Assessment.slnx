@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Orderly.Application/Orderly.Application.csproj" />
+  <Project Path="Orderly.Domain/Orderly.Domain.csproj" />
+  <Project Path="Orderly.Infrastructure/Orderly.Infrastructure.csproj" />
+  <Project Path="Orderly.Tests/Orderly.Tests.csproj" />
+  <Project Path="Orderly/Orderly.csproj" />
+</Solution>

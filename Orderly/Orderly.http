@@ -1,0 +1,19 @@
+@Orderly_HostAddress = https://localhost:7222
+
+POST {{Orderly_HostAddress}}/api/orders
+Content-Type: application/json
+
+{
+  "externalReference": "PO-1001",
+  "customerName": "Northwind",
+  "lines": [
+    { "description": "Binder", "quantity": 2, "unitPrice": 3.5 }
+  ]
+}
+
+###
+
+GET {{Orderly_HostAddress}}/api/orders
+Accept: application/json
+
+###

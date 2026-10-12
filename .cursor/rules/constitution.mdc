@@ -1,0 +1,46 @@
+---
+description: Purchase-order rules, layered architecture, code quality, and transport security
+alwaysApply: true
+---
+
+# Constitution
+
+A small purchase-order system: submit an order, list orders, view one order, and change its status. Design the API, data model, validation, and errors so the rules below stay true.
+
+## Architecture
+
+- C# ASP.NET Core API in `Orderly` (net9.0), split into Domain, Application, Infrastructure, and API. Domain does not reference ASP.NET or file I/O.
+- Angular 18 or newer client. Keep the UI small: submit, list, and enough detail to check totals and status.
+- Persist orders in a local JSON file. Do not add a database.
+- Unit tests must cover totals, validation, repeat submissions, newest-first listing, and status rules.
+
+## Business rules
+
+- The client supplies an external reference. Submitting that reference again must not create a second order.
+- An equivalent repeat returns the existing order. The user still sees one order, the same totals, and the current status.
+- A repeat with different content is rejected. The stored order stays unchanged, and the response explains that the reference is already used.
+- Quantity is a positive whole number. Unit price is non-negative. A zero price is valid.
+- The server computes each line total and the order total from quantity and unit price. Discard client-sent totals.
+- Listing returns the newest order first.
+- Status follows a short sales flow: `Submitted` → `Confirmed` → `Fulfilled`. `Submitted` or `Confirmed` may become `Cancelled`. `Fulfilled` and `Cancelled` are terminal.
+- Reject an illegal status change with a message that names the current status and the statuses that are allowed. Leave the order unchanged.
+
+## Errors
+
+Validation, duplicate-reference, and illegal-transition failures return a clear message and do not write a partial or duplicate order.
+
+## Code quality
+
+- SOLID. Each type has one reason to change. Status rules and total calculation can change without editing the controller. Callers depend on small interfaces. The composition root wires implementations.
+- DRY. Totals, status transitions, validation limits, and HTTP error mapping each live in one place and are reused.
+- Domain objects protect their own invariants. Application services orchestrate. Controllers translate HTTP. The file repository only stores and loads.
+- Use explicit names from the purchase-order language, nullable reference types, and guard clauses. Leave no dead sample code, empty catches, or copied blocks that can drift apart.
+- Request and response DTOs stay at the API edge. Domain types stay inside the application.
+
+## Security
+
+- Encrypt order data in transit. The browser talks to the API only over HTTPS (TLS). HTTP requests redirect to HTTPS.
+- Trust the server for totals, identity, and status. Bind input to dedicated DTOs with the length and number limits in these rules.
+- Allow CORS only for the Angular origin. Keep the order file out of the web root and resolve its path from configuration.
+- Return a clear error message. Omit stack traces, exception types, and internal paths from API responses.
+- Render order text as text. Leave Angular’s sanitization in place.

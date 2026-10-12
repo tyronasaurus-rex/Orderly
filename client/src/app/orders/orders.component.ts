@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnIni
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { buildCreateOrderBody } from './create-order';
-import { filterOrders } from './order-list';
+import { filterOrders, findOrderByExternalReference } from './order-list';
 import { OrderFieldLimits, Order, OrderStatus } from './order.models';
 import { summarizeOrders } from './order-summary';
 import { maxTrimmedLength, nonNegativePrice, requiredTrimmed, wholeQuantity } from './order-field.validators';
@@ -43,6 +43,9 @@ export class OrdersComponent implements OnInit {
   readonly creating = signal(false);
   readonly loading = signal(true);
   readonly submitting = signal(false);
+  readonly checkingReference = signal(false);
+  readonly existingOrder = signal<Order | null>(null);
+  readonly referenceAvailable = signal(false);
   readonly statusUpdating = signal(false);
   readonly notice = signal<string | null>(null);
   readonly formError = signal<string | null>(null);
@@ -56,6 +59,10 @@ export class OrdersComponent implements OnInit {
     return order ? allowedStatusChanges(order.status) : [];
   });
 
+  private referenceLookup = 0;
+  private checkedReference = '';
+  private referenceCheckTimer: ReturnType<typeof setTimeout> | undefined;
+
   readonly form: FormGroup<OrderFormControls> = this.formBuilder.group({
     externalReference: this.formBuilder.nonNullable.control('', {
       validators: [requiredTrimmed, maxTrimmedLength(OrderFieldLimits.externalReference)],
@@ -68,6 +75,10 @@ export class OrdersComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadOrders();
+    this.destroyRef.onDestroy(() => this.clearReferenceTimer());
+    this.form.controls.externalReference.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.clearReferenceLookup());
   }
 
   get lines(): FormArray<FormGroup<LineFormControls>> {
@@ -106,6 +117,7 @@ export class OrdersComponent implements OnInit {
 
   openCreate(): void {
     this.formError.set(null);
+    this.clearReferenceLookup();
     this.creating.set(true);
   }
 
@@ -114,7 +126,83 @@ export class OrdersComponent implements OnInit {
       return;
     }
 
+    this.clearReferenceLookup();
     this.creating.set(false);
+  }
+
+  onReferenceKeyup(): void {
+    if (this.submitting()) {
+      return;
+    }
+
+    const reference = this.form.controls.externalReference.value.trim();
+    if (reference.length === 0 || this.form.controls.externalReference.invalid || reference === this.checkedReference) {
+      this.clearReferenceTimer();
+      return;
+    }
+
+    this.clearReferenceTimer();
+    this.referenceCheckTimer = setTimeout(() => {
+      this.referenceCheckTimer = undefined;
+      this.checkedReference = reference;
+      this.checkReference();
+    }, 300);
+  }
+
+  checkReference(): void {
+    const control = this.form.controls.externalReference;
+    this.formError.set(null);
+    if (control.invalid || this.submitting()) {
+      return;
+    }
+
+    const reference = control.value.trim();
+    const lookup = ++this.referenceLookup;
+    this.existingOrder.set(null);
+    this.referenceAvailable.set(false);
+    this.checkingReference.set(true);
+    this.ordersService
+      .list()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (orders) => {
+          this.applyLoadedOrders(orders);
+          if (lookup !== this.referenceLookup || !this.creating()) {
+            return;
+          }
+
+          this.checkingReference.set(false);
+          const match = findOrderByExternalReference(orders, reference);
+          if (match) {
+            this.existingOrder.set(match);
+            return;
+          }
+
+          this.referenceAvailable.set(true);
+        },
+        error: (error: unknown) => {
+          if (lookup !== this.referenceLookup || !this.creating()) {
+            return;
+          }
+
+          this.checkingReference.set(false);
+          this.formError.set(readOrderProblem(error).message);
+        },
+      });
+  }
+
+  selectExistingOrder(): void {
+    const order = this.existingOrder();
+    if (!order || this.submitting()) {
+      return;
+    }
+
+    if (!this.visibleOrders().some((item) => item.id === order.id)) {
+      this.filterQuery.set('');
+    }
+
+    this.select(order);
+    this.closeCreate();
   }
 
   submit(): void {
@@ -211,17 +299,7 @@ export class OrdersComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (orders) => {
-          this.orders.set(orders);
-          this.listError.set(null);
-          this.loading.set(false);
-          const current = this.selected();
-          if (current) {
-            const refreshed = orders.find((order) => order.id === current.id);
-            if (refreshed) {
-              this.selected.set(refreshed);
-            }
-          }
-
+          this.applyLoadedOrders(orders);
           afterLoad?.();
         },
         error: (error: unknown) => {
@@ -229,6 +307,39 @@ export class OrdersComponent implements OnInit {
           this.listError.set(readOrderProblem(error).message);
         },
       });
+  }
+
+  private applyLoadedOrders(orders: Order[]): void {
+    this.orders.set(orders);
+    this.listError.set(null);
+    this.loading.set(false);
+    const current = this.selected();
+    if (!current) {
+      return;
+    }
+
+    const refreshed = orders.find((order) => order.id === current.id);
+    if (refreshed) {
+      this.selected.set(refreshed);
+    }
+  }
+
+  private clearReferenceTimer(): void {
+    if (this.referenceCheckTimer === undefined) {
+      return;
+    }
+
+    clearTimeout(this.referenceCheckTimer);
+    this.referenceCheckTimer = undefined;
+  }
+
+  private clearReferenceLookup(): void {
+    this.clearReferenceTimer();
+    this.referenceLookup += 1;
+    this.checkedReference = '';
+    this.checkingReference.set(false);
+    this.existingOrder.set(null);
+    this.referenceAvailable.set(false);
   }
 
   private createLine(): FormGroup<LineFormControls> {

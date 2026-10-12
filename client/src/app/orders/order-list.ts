@@ -12,3 +12,12 @@ export function filterOrders(orders: readonly Order[], query: string): readonly 
     ),
   );
 }
+
+export function findOrderByExternalReference(orders: readonly Order[], reference: string): Order | null {
+  const normalized = reference.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  return orders.find((order) => order.externalReference === normalized) ?? null;
+}

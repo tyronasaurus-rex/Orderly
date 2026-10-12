@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="client/client.esproj">
+  <Project Path="client/Orderly.Client.esproj">
     <Build />
     <Deploy />
   </Project>
@@ -7,5 +7,5 @@
   <Project Path="Orderly.Domain/Orderly.Domain.csproj" />
   <Project Path="Orderly.Infrastructure/Orderly.Infrastructure.csproj" />
   <Project Path="Orderly.Tests/Orderly.Tests.csproj" />
-  <Project Path="Orderly/Orderly.csproj" />
+  <Project Path="Orderly/Orderly.API.csproj" />
 </Solution>

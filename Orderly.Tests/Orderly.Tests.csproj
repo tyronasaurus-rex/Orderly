@@ -23,7 +23,7 @@
     <ProjectReference Include="..\Orderly.Application\Orderly.Application.csproj" />
     <ProjectReference Include="..\Orderly.Domain\Orderly.Domain.csproj" />
     <ProjectReference Include="..\Orderly.Infrastructure\Orderly.Infrastructure.csproj" />
-    <ProjectReference Include="..\Orderly\Orderly.csproj" />
+    <ProjectReference Include="..\Orderly\Orderly.API.csproj" />
   </ItemGroup>
 
 </Project>

@@ -193,9 +193,53 @@ input {
 }
 
 input:focus-visible,
-button:focus-visible {
+button:focus-visible,
+a.splash-continue:focus-visible {
   outline: 3px solid #8fd0c6;
   outline-offset: 2px;
+}
+
+.splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+  background:
+    radial-gradient(circle at top, #1d3a36 0%, transparent 58%),
+    var(--ink);
+  color: #f7fbfc;
+}
+
+.splash-card {
+  width: min(36rem, 100%);
+  text-align: center;
+}
+
+.splash h1 {
+  color: #f7fbfc;
+  font-size: clamp(2.4rem, 6vw, 3.4rem);
+  margin-bottom: 0.75rem;
+}
+
+.splash-copy {
+  color: #c5d5dc;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin-bottom: 1.75rem;
+}
+
+a.splash-continue {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+}
+
+a.splash-continue:hover {
+  background: var(--accent-strong);
 }
 
 .lines {
@@ -223,6 +267,28 @@ button:focus-visible {
 .field-error {
   color: var(--error-ink);
   font-size: 0.82rem;
+}
+
+.reference-exists {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: var(--error-bg);
+  color: var(--error-ink);
+}
+
+.reference-exists p {
+  flex: 1 1 12rem;
+}
+
+.reference-exists button {
+  background: #fff;
+  color: var(--ink);
 }
 
 .banner {

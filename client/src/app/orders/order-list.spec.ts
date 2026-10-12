@@ -1,4 +1,4 @@
-import { filterOrders } from './order-list';
+import { filterOrders, findOrderByExternalReference } from './order-list';
 import { Order } from './order.models';
 
 describe('filterOrders', () => {
@@ -17,6 +17,20 @@ describe('filterOrders', () => {
 
     expect(filterOrders(orders, 'north').map((item) => item.id)).toEqual(['older']);
     expect(filterOrders(orders, 'confirmed').map((item) => item.id)).toEqual(['newer']);
+  });
+});
+
+describe('findOrderByExternalReference', () => {
+  const stored = order('stored', 'PO-1001', 'Northwind', 'Submitted');
+
+  it('matches the trimmed reference and keeps case distinct', () => {
+    expect(findOrderByExternalReference([stored], '  PO-1001  ')?.id).toBe('stored');
+    expect(findOrderByExternalReference([stored], 'po-1001')).toBeNull();
+  });
+
+  it('returns null when the reference is blank or unused', () => {
+    expect(findOrderByExternalReference([stored], '   ')).toBeNull();
+    expect(findOrderByExternalReference([stored], 'PO-9')).toBeNull();
   });
 });
 

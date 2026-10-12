@@ -225,10 +225,23 @@
           autocomplete="off"
           spellcheck="false"
           autofocus
+          (keyup)="onReferenceKeyup()"
           [attr.aria-invalid]="form.controls.externalReference.touched && form.controls.externalReference.invalid"
         />
         @if (form.controls.externalReference.touched && form.controls.externalReference.invalid) {
           <p class="field-error">Enter a reference up to {{ limits.externalReference }} characters.</p>
+        }
+        @if (existingOrder(); as existing) {
+          <div class="reference-exists" role="status">
+            <p>The external reference is already used for {{ existing.customerName }}.</p>
+            <button type="button" (click)="selectExistingOrder()" [disabled]="submitting()">
+              Select this order
+            </button>
+          </div>
+        } @else if (checkingReference()) {
+          <p class="quiet">Checking reference…</p>
+        } @else if (referenceAvailable()) {
+          <p class="quiet">No order uses this reference.</p>
         }
       </div>
 
